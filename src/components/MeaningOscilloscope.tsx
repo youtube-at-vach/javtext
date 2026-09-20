@@ -227,8 +227,8 @@ export function MeaningOscilloscope({
       </div>
 
       {/* Channel toggles */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-        <span className="text-zinc-400 text-[11px] font-medium flex items-center gap-1 shrink-0">
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <span className="text-zinc-400 text-[11px] font-medium flex items-center gap-1 shrink-0 mr-0.5">
           <Layers className="w-3 h-3" />
           <span>表示チャンネル:</span>
         </span>

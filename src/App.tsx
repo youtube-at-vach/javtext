@@ -598,7 +598,7 @@ export default function App() {
                       initial={{ opacity: 0, y: -4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3 }}
-                      className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl border shadow-2xs transition-colors duration-500 ${
+                      className={`p-3.5 sm:p-4 rounded-2xl border shadow-2xs transition-colors duration-500 ${
                         result.coreMeters.sentiment.value >= 55
                           ? "bg-blue-50/40 border-blue-200/90 text-blue-950"
                           : result.coreMeters.sentiment.value <= 45
@@ -606,35 +606,40 @@ export default function App() {
                           : "bg-white border-zinc-200/90 text-zinc-900"
                       }`}
                     >
-                      <div className="text-xs flex items-center flex-wrap gap-1.5">
-                        <span className="font-bold block sm:inline">
-                          計測結果サマリー:
-                        </span>
-                        {result.coreMeters.sentiment.value >= 55 && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 shadow-2xs">
-                            <Sparkles className="w-3 h-3 text-blue-600" />
-                            ポジティブ判定 ({result.coreMeters.sentiment.value})
+                      <div className="flex items-center justify-between gap-3 pb-2 border-b border-zinc-200/60">
+                        <div className="flex items-center flex-wrap gap-1.5 min-w-0">
+                          <span className="text-xs font-bold text-zinc-900 shrink-0">
+                            計測結果サマリー
                           </span>
-                        )}
-                        {result.coreMeters.sentiment.value <= 45 && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 shadow-2xs">
-                            <AlertCircle className="w-3 h-3 text-rose-600" />
-                            ネガティブ判定 ({result.coreMeters.sentiment.value})
-                          </span>
-                        )}
-                        <span className="text-zinc-600 sm:ml-1">
-                          {result.overallImpression.title} — {result.overallImpression.summary}
-                        </span>
+                          {result.coreMeters.sentiment.value >= 55 && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 shadow-2xs shrink-0">
+                              <Sparkles className="w-3 h-3 text-blue-600" />
+                              ポジティブ判定 ({result.coreMeters.sentiment.value}/100)
+                            </span>
+                          )}
+                          {result.coreMeters.sentiment.value <= 45 && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 shadow-2xs shrink-0">
+                              <AlertCircle className="w-3 h-3 text-rose-600" />
+                              ネガティブ判定 ({result.coreMeters.sentiment.value}/100)
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleCopyReport}
+                          className="px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
+                        >
+                          {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
+                          <span>{isCopied ? "コピー完了" : "測定結果をコピー"}</span>
+                        </button>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={handleCopyReport}
-                        className="self-start sm:self-auto px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
-                      >
-                        {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
-                        <span>{isCopied ? "コピー完了" : "測定結果をコピー"}</span>
-                      </button>
+                      <div className="text-xs text-zinc-700 mt-2 leading-relaxed">
+                        <strong className="text-zinc-900 font-bold mr-1.5">{result.overallImpression.title}</strong>
+                        <span className="text-zinc-400 font-normal">—</span>
+                        <span className="ml-1.5 text-zinc-600">{result.overallImpression.summary}</span>
+                      </div>
                     </motion.div>
 
                     <EmotionalProfileCard result={result} />

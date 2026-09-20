@@ -172,71 +172,33 @@ export function MeterGauge({
     <div
       className={`bg-gradient-to-br ${scheme.cardBg} rounded-xl border border-zinc-200/90 p-3.5 sm:p-4 transition-all duration-500 hover:border-zinc-300 hover:shadow-xs ${scheme.glow}`}
     >
-      {/* Top Header: Icon + Name + 5-stage Tier + Interpretation + Delta */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="flex items-start gap-2 sm:gap-2.5 min-w-0 flex-1">
-          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg border flex items-center justify-center shrink-0 mt-0.5 ${scheme.icon}`}>
+      {/* Top Header: Icon + Name (left) vs Score & Delta (right) */}
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg border flex items-center justify-center shrink-0 ${scheme.icon}`}>
             <IconComponent className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1 sm:gap-1.5">
-              <h4 className="text-xs sm:text-sm font-bold text-zinc-900 tracking-tight flex items-center gap-1 shrink-0">
-                <span>{meter.name}</span>
-                {meter.definition && (
-                  <button
-                    type="button"
-                    onClick={() => setShowDefinition((v) => !v)}
-                    className="text-zinc-400 hover:text-indigo-600 transition-colors p-0.5 rounded hover:bg-zinc-100"
-                    title="測定項目の定義を見る"
-                  >
-                    <HelpCircle className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </h4>
-
-              {/* 5-Stage Human Qualitative Tier */}
-              <span className={`text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md border shadow-2xs whitespace-nowrap shrink-0 ${scheme.tierBadge}`}>
-                {tier}
-              </span>
-
-              {/* Secondary interpretation */}
-              <span className={`text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full border truncate max-w-[110px] sm:max-w-none whitespace-nowrap shrink-0 ${scheme.badge}`}>
-                {meter.interpretation}
-              </span>
-            </div>
-
-            {/* Jev System Model Confidence Badge */}
-            <div className="flex flex-wrap items-center gap-1.5 mt-1">
-              <span className="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-600 bg-zinc-100/90 px-1.5 sm:px-2 py-0.5 rounded-md border border-zinc-200 whitespace-nowrap shrink-0">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
-                <span>Jev判定信頼度 {modelConfidence}%</span>
-              </span>
-              {!isCompact && (
-                <p className="hidden lg:block text-[11px] text-zinc-500 truncate max-w-xs">
-                  {meter.description}
-                </p>
-              )}
-            </div>
-          </div>
+          <h4 className="text-xs sm:text-sm font-bold text-zinc-900 tracking-tight flex items-center gap-1 min-w-0">
+            <span className="truncate">{meter.name}</span>
+            {meter.definition && (
+              <button
+                type="button"
+                onClick={() => setShowDefinition((v) => !v)}
+                className="text-zinc-400 hover:text-indigo-600 transition-colors p-0.5 rounded hover:bg-zinc-100 shrink-0"
+                title="測定項目の定義を見る"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </h4>
         </div>
 
         {/* Right side: Score & Optional Delta */}
-        <div className="text-right shrink-0 flex flex-col items-end pl-1">
-          <div className="flex items-baseline gap-0.5">
-            <span className="text-base sm:text-xl md:text-2xl font-black text-zinc-900 tabular-nums tracking-tight">
-              <AnimatedScore
-                value={meter.value}
-                animKey={animationKey}
-                sentimentMode={meter.id === "sentiment"}
-              />
-            </span>
-            <span className="text-[10px] sm:text-xs font-semibold text-zinc-400">/100</span>
-          </div>
-
+        <div className="text-right shrink-0 flex items-center gap-1.5 pl-2">
           {/* Delta badge for A/B comparison or edit tracking */}
           {typeof delta === "number" && delta !== 0 && (
             <div
-              className={`inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] font-bold font-mono px-1.5 py-0.5 rounded-md border mt-0.5 whitespace-nowrap ${
+              className={`inline-flex items-center gap-0.5 text-[10px] sm:text-[11px] font-bold font-mono px-1.5 py-0.5 rounded-md border whitespace-nowrap ${
                 delta > 0
                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                   : "bg-rose-50 text-rose-700 border-rose-200"
@@ -247,12 +209,48 @@ export function MeterGauge({
             </div>
           )}
           {typeof delta === "number" && delta === 0 && (
-            <div className="inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-zinc-100 text-zinc-500 border border-zinc-200 mt-0.5 whitespace-nowrap">
+            <div className="inline-flex items-center gap-0.5 text-[9px] sm:text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-zinc-100 text-zinc-500 border border-zinc-200 whitespace-nowrap">
               <Minus className="w-2.5 h-2.5" />
-              <span>変化なし (±0)</span>
+              <span>±0</span>
             </div>
           )}
+
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-base sm:text-xl md:text-2xl font-black text-zinc-900 tabular-nums tracking-tight">
+              <AnimatedScore
+                value={meter.value}
+                animKey={animationKey}
+                sentimentMode={meter.id === "sentiment"}
+              />
+            </span>
+            <span className="text-[10px] sm:text-xs font-semibold text-zinc-400">/100</span>
+          </div>
         </div>
+      </div>
+
+      {/* Row 2: Badges & Confidence */}
+      <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 mb-2">
+        {/* 5-Stage Human Qualitative Tier */}
+        <span className={`text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md border shadow-2xs whitespace-nowrap shrink-0 ${scheme.tierBadge}`}>
+          {tier}
+        </span>
+
+        {/* Secondary interpretation */}
+        <span className={`text-[10px] font-semibold px-1.5 sm:px-2 py-0.5 rounded-full border truncate max-w-[130px] sm:max-w-[180px] shrink-0 ${scheme.badge}`}>
+          {meter.interpretation}
+        </span>
+
+        {/* Jev System Model Confidence Badge */}
+        <span className="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-600 bg-zinc-100/90 px-1.5 sm:px-2 py-0.5 rounded-md border border-zinc-200 whitespace-nowrap shrink-0">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+          <span>Jev判定信頼度 {modelConfidence}%</span>
+        </span>
+
+        {!isCompact && (
+          <p className="hidden xl:block text-[11px] text-zinc-500 truncate max-w-xs ml-1">
+            {meter.description}
+          </p>
+        )}
       </div>
 
       {/* Expandable Meter Definition Box */}

@@ -174,10 +174,15 @@ export function EmotionalProfileCard({
         </div>
 
         {/* Formatted Code Block of Emotional Profile */}
-        <div className="bg-zinc-900 text-zinc-100 rounded-lg p-3 font-mono text-xs sm:text-sm tracking-wide flex items-center justify-between overflow-x-auto select-all shadow-inner">
-          <code className="text-emerald-400 font-bold whitespace-nowrap">
-            {result.emotionalProfileString}
-          </code>
+        <div className="bg-zinc-900 text-zinc-100 rounded-xl p-3 sm:p-3.5 font-mono text-xs sm:text-sm tracking-wide select-all shadow-inner border border-zinc-800">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 font-bold">
+            {result.emotionalProfileString.split(" / ").map((seg, idx, arr) => (
+              <span key={seg} className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                <span className="text-emerald-400">{seg}</span>
+                {idx < arr.length - 1 && <span className="text-zinc-600 font-normal">/</span>}
+              </span>
+            ))}
+          </div>
         </div>
 
         {/* Interactive breakdown chips with animated counting and color shifts */}
