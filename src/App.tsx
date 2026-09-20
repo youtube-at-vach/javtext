@@ -604,250 +604,158 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    {/* 1. Overall Impression Banner & Animated Summary Deck */}
-                    <motion.div
-                      key={`summary-bar-${result.overallImpression.title}-${measureAnimKey}`}
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.35 }}
-                      className={`p-4 sm:p-5 rounded-2xl border shadow-xs transition-colors duration-500 ${
-                        result.subtextAnalysis?.verdict === "kyoto_passive_aggressive"
-                          ? "bg-gradient-to-br from-amber-50/80 via-white to-emerald-50/40 border-amber-300 ring-1 ring-amber-200/70"
-                          : result.coreMeters.sentiment.value >= 55
-                          ? "bg-gradient-to-br from-blue-50/60 via-white to-indigo-50/40 border-blue-200/90 shadow-blue-100/40"
-                          : result.coreMeters.sentiment.value <= 45
-                          ? "bg-gradient-to-br from-rose-50/60 via-white to-red-50/40 border-rose-200/90 shadow-rose-100/40"
-                          : "bg-gradient-to-br from-zinc-50/70 via-white to-zinc-50/40 border-zinc-200 text-zinc-900"
-                      }`}
-                    >
-                      {/* Top Header Row */}
-                      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-zinc-200/70">
-                        <div className="flex items-center flex-wrap gap-2 min-w-0">
-                          <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider shrink-0">
-                            計測結果サマリー
-                          </span>
-
-                          {/* Dynamic Sentiment Badge with Counting & Color Shift */}
-                          {result.coreMeters.sentiment.value >= 55 ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 shadow-2xs shrink-0">
-                              <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                              <span>ポジティブ判定</span>
-                              <span className="tabular-nums">
-                                (
-                                <AnimatedScore
-                                  value={result.coreMeters.sentiment.value}
-                                  sentimentMode={true}
-                                  animKey={measureAnimKey}
-                                />
-                                /100)
-                              </span>
-                            </span>
-                          ) : result.coreMeters.sentiment.value <= 45 ? (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 shadow-2xs shrink-0">
-                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                              <span>ネガティブ・批判判定</span>
-                              <span className="tabular-nums">
-                                (
-                                <AnimatedScore
-                                  value={result.coreMeters.sentiment.value}
-                                  sentimentMode={true}
-                                  animKey={measureAnimKey}
-                                />
-                                /100)
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 shadow-2xs shrink-0">
-                              <span>中立・平常判定</span>
-                              <span className="tabular-nums">
-                                (
-                                <AnimatedScore
-                                  value={result.coreMeters.sentiment.value}
-                                  animKey={measureAnimKey}
-                                />
-                                /100)
-                              </span>
-                            </span>
-                          )}
-
-                          {/* Kyoto Passive-Aggressive Alert Badge */}
-                          {result.subtextAnalysis?.verdict === "kyoto_passive_aggressive" && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs shrink-0 animate-pulse">
-                              <span>🍵 京都式・婉曲クレーム検知</span>
-                              <span className="font-mono text-[10px] bg-amber-200/80 px-1 rounded">
-                                合成皮肉度 {result.subtextAnalysis.compositeSarcasmScore}点
-                              </span>
-                            </span>
-                          )}
+                    {/* Priority Navigation Quick-Jump Bar */}
+                    <div className="bg-white/95 backdrop-blur-xs rounded-2xl border border-zinc-200/90 p-2.5 shadow-2xs sticky top-2 z-20">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1 text-[11px] font-bold text-zinc-500 shrink-0">
+                          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                          <span className="hidden sm:inline">重要度順インデックス:</span>
+                          <span className="sm:hidden">重要度:</span>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none text-[11px]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              document.getElementById("priority-1-summary")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }}
+                            className="px-2 py-1 rounded-lg font-bold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors whitespace-nowrap shadow-2xs"
+                          >
+                            1. 総合診断
+                          </button>
+
                           {result.subtextAnalysis && (
                             <button
                               type="button"
-                              onClick={() => setIsBenchmarkModalOpen(true)}
-                              className="px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-semibold flex items-center gap-1 transition-colors shrink-0 shadow-2xs"
-                              title="京都弁・婉曲表現の4段階ベンチマークを開く"
+                              onClick={() => {
+                                document.getElementById("priority-2-subtext")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }}
+                              className="px-2 py-1 rounded-lg font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 transition-colors whitespace-nowrap shadow-2xs"
                             >
-                              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                              <span className="hidden sm:inline">4段階ベンチマーク</span>
+                              2. 本音看破
                             </button>
                           )}
 
                           <button
                             type="button"
-                            onClick={handleCopyReport}
-                            className="px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
+                            onClick={() => {
+                              document.getElementById("priority-3-core")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }}
+                            className="px-2 py-1 rounded-lg font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors whitespace-nowrap"
                           >
-                            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
-                            <span>{isCopied ? "コピー完了" : "測定結果をコピー"}</span>
+                            3. 5大コア
                           </button>
-                        </div>
-                      </div>
 
-                      {/* Main Overall Impression Description */}
-                      <div className="text-xs sm:text-sm text-zinc-800 mt-3 leading-relaxed">
-                        <strong className="text-zinc-950 font-black mr-2 text-sm sm:text-base">
-                          {result.overallImpression.title}
-                        </strong>
-                        <span className="text-zinc-400 font-normal mr-2">—</span>
-                        <span className="text-zinc-600">{result.overallImpression.summary}</span>
-                      </div>
-
-                      {/* Micro-Gauge KPI Bar with Animated Counting & Live Color Response */}
-                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3.5 pt-3 border-t border-zinc-200/60">
-                        {/* 1. 感情方向 (Sentiment) */}
-                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs">
-                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">感情方向</div>
-                          <div className="text-base font-black tabular-nums mt-0.5">
-                            <AnimatedScore
-                              value={result.coreMeters.sentiment.value}
-                              sentimentMode={true}
-                              showTrendIcon={true}
-                              animKey={measureAnimKey}
-                            />
-                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
-                          </div>
-                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
-                            {result.coreMeters.sentiment.level5}
-                          </div>
-                        </div>
-
-                        {/* 2. 感情強度 (Intensity) */}
-                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs">
-                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">感情強度</div>
-                          <div className="text-base font-black text-amber-600 tabular-nums mt-0.5">
-                            <AnimatedScore
-                              value={result.coreMeters.intensity.value}
-                              animKey={measureAnimKey}
-                            />
-                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
-                          </div>
-                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
-                            {result.coreMeters.intensity.level5}
-                          </div>
-                        </div>
-
-                        {/* 3. 断定度 (Confidence) */}
-                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs">
-                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">断定・言い切り</div>
-                          <div className="text-base font-black text-indigo-600 tabular-nums mt-0.5">
-                            <AnimatedScore
-                              value={result.coreMeters.confidence.value}
-                              animKey={measureAnimKey}
-                            />
-                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
-                          </div>
-                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
-                            {result.coreMeters.confidence.level5}
-                          </div>
-                        </div>
-
-                        {/* 4. 対人敵意 (Hostility) */}
-                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs">
-                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">対人敵意</div>
-                          <div
-                            className={`text-base font-black tabular-nums mt-0.5 ${
-                              result.coreMeters.hostility.value >= 40 ? "text-rose-600" : "text-emerald-600"
-                            }`}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              document.getElementById("priority-4-nuance")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                            }}
+                            className="px-2 py-1 rounded-lg font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors whitespace-nowrap"
                           >
-                            <AnimatedScore
-                              value={result.coreMeters.hostility.value}
-                              animKey={measureAnimKey}
-                            />
-                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
-                          </div>
-                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
-                            {result.coreMeters.hostility.level5}
-                          </div>
+                            4. 修辞ニュアンス
+                          </button>
+
+                          {result.sentenceFlow && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                document.getElementById("priority-5-oscilloscope")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                              }}
+                              className="px-2 py-1 rounded-lg font-medium text-zinc-700 bg-zinc-100 hover:bg-zinc-200 transition-colors whitespace-nowrap"
+                            >
+                              5. 文ごとの波形
+                            </button>
+                          )}
                         </div>
-
-                        {/* 5. 合成皮肉度 or 単一皮肉度 */}
-                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs col-span-2 sm:col-span-1">
-                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
-                            {result.subtextAnalysis ? "4要素合成皮肉" : "皮肉度"}
-                          </div>
-                          <div
-                            className={`text-base font-black tabular-nums mt-0.5 ${
-                              (result.subtextAnalysis?.compositeSarcasmScore ?? result.nuanceMeters.sarcasm.value) >= 60
-                                ? "text-purple-600 font-bold"
-                                : "text-zinc-800"
-                            }`}
-                          >
-                            <AnimatedScore
-                              value={result.subtextAnalysis?.compositeSarcasmScore ?? result.nuanceMeters.sarcasm.value}
-                              animKey={measureAnimKey}
-                            />
-                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
-                          </div>
-                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
-                            {result.subtextAnalysis?.verdictBadge ?? result.nuanceMeters.sarcasm.level5}
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-
-                    <EmotionalProfileCard result={result} />
-
-                    {/* Subtext Decomposition (京都弁・婉曲アイロニー・本音と建前の4要素分解) */}
-                    {result.subtextAnalysis && (
-                      <SubtextDecompositionCard
-                        subtext={result.subtextAnalysis}
-                        onOpenBenchmark={() => setIsBenchmarkModalOpen(true)}
-                      />
-                    )}
-
-                    {/* 2. Meaning Oscilloscope (文章内の時系列波形グラフ) */}
-                    {result.sentenceFlow && (
-                      <MeaningOscilloscope sentenceFlow={result.sentenceFlow} />
-                    )}
-
-                    {/* 3. Radar Chart & Core Meters Deck */}
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
-                      {/* Visual Polygon Radar */}
-                      <div className="md:col-span-5 flex">
-                        <div className="w-full">
-                          <ImpressionRadar meters={result.coreMeters} />
-                        </div>
-                      </div>
-
-                      {/* Core 5 Meters List with 5-stage tiers, Jev confidence, and definition info */}
-                      <div className="md:col-span-7 space-y-3 flex flex-col justify-between">
-                        <MeterGauge meter={result.coreMeters.sentiment} animationKey={measureAnimKey} />
-                        <MeterGauge meter={result.coreMeters.intensity} animationKey={measureAnimKey} />
-                        <MeterGauge meter={result.coreMeters.confidence} animationKey={measureAnimKey} />
-                        <MeterGauge meter={result.coreMeters.formality} animationKey={measureAnimKey} />
-                        <MeterGauge meter={result.coreMeters.hostility} animationKey={measureAnimKey} />
                       </div>
                     </div>
 
-                    {/* 4. Nuance Meters (修辞・皮肉・AI構文・広告度などの指標群) */}
-                    <NuanceMetersDeck
-                      nuanceMeters={result.nuanceMeters}
-                      animationKey={measureAnimKey}
-                    />
+                    {/* PRIORITY 1: Executive Overall Verdict & KPIs (最重要 1: 総合診断・エグゼクティブサマリー) */}
+                    <div id="priority-1-summary" className="scroll-mt-16">
+                      <EmotionalProfileCard
+                        result={result}
+                        animationKey={measureAnimKey}
+                        onOpenBenchmark={() => setIsBenchmarkModalOpen(true)}
+                        onCopyReport={handleCopyReport}
+                        isReportCopied={isCopied}
+                      />
+                    </div>
 
-                    {/* Footer Metadata */}
+                    {/* PRIORITY 2: Subtext & Tatemae-Honne Irony Synthesis (重要度 2: 本音と建前の真意看破) */}
+                    {result.subtextAnalysis && (
+                      <div id="priority-2-subtext" className="scroll-mt-16">
+                        <SubtextDecompositionCard
+                          subtext={result.subtextAnalysis}
+                          onOpenBenchmark={() => setIsBenchmarkModalOpen(true)}
+                        />
+                      </div>
+                    )}
+
+                    {/* PRIORITY 3: Core 5 Dimensions & Radar Balance (重要度 3: 5大コア印象メーター ＆ レーダーチャート) */}
+                    <div id="priority-3-core" className="scroll-mt-16 bg-white rounded-2xl border border-zinc-200 p-4 sm:p-5 shadow-2xs space-y-4">
+                      {/* Section Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-zinc-100">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-0.5 rounded-full bg-zinc-900 text-white tracking-wide shadow-2xs">
+                              <span className="text-amber-400">★</span>
+                              <span>重要度 3</span>
+                              <span className="text-zinc-400 font-normal">|</span>
+                              <span className="font-bold">5大コア印象メーター ＆ レーダー</span>
+                            </span>
+
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              5 Dimensions
+                            </span>
+                          </div>
+
+                          <h3 className="text-sm font-bold text-zinc-900 tracking-tight flex items-center gap-1.5">
+                            <Gauge className="w-4 h-4 text-indigo-600" />
+                            <span>文章全体の骨格バランス・多次元測定値</span>
+                          </h3>
+                          <p className="text-xs text-zinc-500 mt-0.5">
+                            文章の骨格となる感情・強度・断定・文体・敵意の5指標を多角形レーダーと精密ゲージで可視化します。
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Radar & Gauges Deck */}
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch">
+                        {/* Visual Polygon Radar */}
+                        <div className="md:col-span-5 flex">
+                          <div className="w-full">
+                            <ImpressionRadar meters={result.coreMeters} />
+                          </div>
+                        </div>
+
+                        {/* Core 5 Meters List */}
+                        <div className="md:col-span-7 space-y-3 flex flex-col justify-between">
+                          <MeterGauge meter={result.coreMeters.sentiment} animationKey={measureAnimKey} />
+                          <MeterGauge meter={result.coreMeters.intensity} animationKey={measureAnimKey} />
+                          <MeterGauge meter={result.coreMeters.confidence} animationKey={measureAnimKey} />
+                          <MeterGauge meter={result.coreMeters.formality} animationKey={measureAnimKey} />
+                          <MeterGauge meter={result.coreMeters.hostility} animationKey={measureAnimKey} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* PRIORITY 4: Rhetoric & Nuance Meters Deck (重要度 4: 特殊修辞・ニュアンス指標群) */}
+                    <div id="priority-4-nuance" className="scroll-mt-16">
+                      <NuanceMetersDeck
+                        nuanceMeters={result.nuanceMeters}
+                        animationKey={measureAnimKey}
+                      />
+                    </div>
+
+                    {/* PRIORITY 5: Sentence Flow Oscilloscope (重要度 5: 文ごとの意味オシロスコープ波形) */}
+                    {result.sentenceFlow && (
+                      <div id="priority-5-oscilloscope" className="scroll-mt-16">
+                        <MeaningOscilloscope sentenceFlow={result.sentenceFlow} />
+                      </div>
+                    )}
+
+                    {/* Footer System Telemetry */}
                     <div className="flex items-center justify-between text-[11px] text-zinc-400 px-2 font-mono">
                       <span>Engine: {result.modelUsed}</span>
                       <span>Latency: {result.developerDetails?.durationMs}ms</span>

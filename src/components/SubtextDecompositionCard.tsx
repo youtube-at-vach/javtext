@@ -82,9 +82,16 @@ export function SubtextDecompositionCard({
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3.5 pb-3 border-b border-zinc-100">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
-            <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-zinc-900 text-white flex items-center gap-1 shadow-2xs">
-              <Layers className="w-3 h-3 text-amber-400" />
-              <span>4要素合成皮肉推論エンジン</span>
+            <span className="inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-0.5 rounded-full bg-zinc-900 text-white tracking-wide shadow-2xs">
+              <span className="text-amber-400">★</span>
+              <span>重要度 2</span>
+              <span className="text-zinc-400 font-normal">|</span>
+              <span className="font-bold">本音と建前の真意看破</span>
+            </span>
+
+            <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-2xs">
+              <Layers className="w-3 h-3 text-amber-700" />
+              <span>4要素合成推論</span>
             </span>
 
             <span

@@ -41,15 +41,23 @@ export function NuanceMetersDeck({ nuanceMeters, animationKey }: NuanceMetersDec
     <div className="bg-white rounded-2xl border border-zinc-200 p-4 sm:p-5 shadow-2xs space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-3 border-b border-zinc-100">
         <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-violet-600" />
-            <h3 className="text-sm font-bold text-zinc-900 tracking-tight">
-              文章のウラ印象メーター（修辞・ニュアンス・実験的指標）
-            </h3>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-0.5 rounded-full bg-zinc-900 text-white tracking-wide shadow-2xs">
+              <span className="text-amber-400">★</span>
+              <span>重要度 4</span>
+              <span className="text-zinc-400 font-normal">|</span>
+              <span className="font-bold">特殊修辞・ニュアンス指標群</span>
+            </span>
+
             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200">
               6 Dimensions
             </span>
           </div>
+
+          <h3 className="text-sm font-bold text-zinc-900 tracking-tight flex items-center gap-1.5">
+            <Sparkles className="w-4 h-4 text-violet-600" />
+            <span>文章のウラ印象メーター（修辞・ニュアンス・実験的指標）</span>
+          </h3>
           <p className="text-xs text-zinc-500 mt-0.5">
             <strong>説得度</strong>・<strong>皮肉度</strong>をはじめ、文章表現の裏に潜むスタンスやAI構文度をTypeSafe Jevが直接解析します。
           </p>

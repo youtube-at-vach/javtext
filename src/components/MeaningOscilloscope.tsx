@@ -199,15 +199,25 @@ export function MeaningOscilloscope({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-zinc-100">
         <div>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <span className="inline-flex items-center gap-1 text-[11px] font-black px-2.5 py-0.5 rounded-full bg-zinc-900 text-white tracking-wide shadow-2xs">
+              <span className="text-amber-400">★</span>
+              <span>重要度 5</span>
+              <span className="text-zinc-400 font-normal">|</span>
+              <span className="font-bold">文ごとの波形推移（時系列深掘り）</span>
+            </span>
+
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
+              {count} 文検出
+            </span>
+          </div>
+
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600">
               <Activity className="w-3.5 h-3.5" />
             </div>
             <h3 className="text-sm font-bold text-zinc-900 tracking-tight flex items-center gap-1.5">
               <span>{title}</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-zinc-100 text-zinc-600 border border-zinc-200">
-                {count} 文検出
-              </span>
             </h3>
           </div>
           <p className="text-xs text-zinc-500 mt-0.5">
