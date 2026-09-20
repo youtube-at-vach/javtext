@@ -1,0 +1,6 @@
+{
+  "name": "Jev 文章印象メーター",
+  "description": "TypeSafe Jevによる文章印象・ニュアンス・意味オシロスコープ測定器。A/B比較モード、文ごとの波形推移、判定信頼度や断定度を多次元に可視化します",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
