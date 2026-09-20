@@ -32,6 +32,57 @@ export interface SentenceFlowPoint {
   sarcasm: number;
 }
 
+export interface SynthesisStep {
+  stepNumber: number;
+  title: string;
+  description: string;
+  formula?: string;
+  calculatedValue?: number;
+  unit?: string;
+  notes?: string;
+}
+
+export interface ElementContribution {
+  key: "surfaceCourtesy" | "underlyingGrievance" | "avoidanceIntent" | "indirectCriticism";
+  label: string;
+  score: number;
+  weightPercent: number;
+  effectiveContribution: number;
+  role: string;
+  color: string;
+}
+
+export interface SynthesisProcess {
+  formulaDisplay: string;
+  baseLoad: number;
+  gapBonus: number;
+  indirectMultiplier: number;
+  finalCompositeScore: number;
+  steps: SynthesisStep[];
+  contributions: ElementContribution[];
+  explanationSummary: string;
+}
+
+export interface SubtextDecomposition {
+  // 4 decomposed atomic scores (0 to 100)
+  surfaceCourtesy: number;       // 表面上の丁寧・好意度 (Surface Courtesy)
+  underlyingGrievance: number;   // 潜在的不満・失望度 (Underlying Grievance)
+  avoidanceIntent: number;       // 関係回避・忌避意図（他手段探索） (Avoidance Intent)
+  indirectCriticism: number;     // 婉曲性・当てつけ度 (Indirect Criticism)
+
+  // Synthetic composite metrics
+  tatemaeHonneGap: number;       // 本音と建前の乖離度 (0-100)
+  rawSarcasmScore: number;       // 単一質問による生Jev皮肉度
+  compositeSarcasmScore: number; // 4要素から合成した真意皮肉度
+
+  verdict: "kyoto_passive_aggressive" | "genuine_praise" | "direct_complaint" | "polite_cautious" | "neutral";
+  verdictTitle: string;
+  verdictBadge: string;
+  verdictDescription: string;
+  sarcasmBoostReason?: string;
+  synthesisProcess?: SynthesisProcess;
+}
+
 export interface DeveloperDetails {
   durationMs: number;
   model: string;
@@ -62,6 +113,7 @@ export interface ImpressionResult {
     selfCenteredness: MeterItem;
     intellectualPretense: MeterItem;
   };
+  subtextAnalysis?: SubtextDecomposition;
   detectedSignals: DetectedSignal[];
   stats: {
     charCount: number;

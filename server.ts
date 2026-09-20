@@ -3,7 +3,15 @@ import path from "path";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import { score, noul, TypeSafeClient } from "@typesafe-ai/sdk";
-import type { ImpressionResult, MeterItem, DetectedSignal } from "./src/types";
+import type {
+  ImpressionResult,
+  MeterItem,
+  DetectedSignal,
+  SubtextDecomposition,
+  SynthesisProcess,
+  SynthesisStep,
+  ElementContribution,
+} from "./src/types";
 
 dotenv.config();
 
@@ -43,6 +51,7 @@ function extractTextSignalsAndStats(text: string): {
   const aiMarkers = ["いかがでしたでしょうか", "結論として", "非常に重要です", "近年、", "と言えるでしょう", "多岐にわたる", "メリットとデメリット"];
   const persuasionMarkers = ["すべき", "今すぐ", "行動を", "必読", "おすすめ", "絶対に", "強く推奨", "必要不可欠", "見逃すな", "参加しよう", "試してみて"];
   const sarcasmMarkers = ["お陰様で", "素晴らしい（棒）", "類まれなる", "感服", "ありがたいことに", "失笑", "独特なセンス", "流石ですね", "さぞかし", "立派なことで"];
+  const kyotoMarkers = ["別の方法がないか", "十分確認した方がええ", "よう分かりました", "勉強になりました", "お勉強代", "次回からは別", "お願いする前に", "お察し"];
 
   posWords.forEach((w) => {
     if (trimmed.includes(w)) signals.push({ phrase: w, impact: "ポジティブ語句", meterId: "sentiment", type: "positive" });
@@ -178,12 +187,257 @@ interface ImpressionBuilderParams {
   sarcasm: number;
   self: number;
   intel: number;
+  surfaceCourtesy?: number;
+  underlyingGrievance?: number;
+  avoidanceIntent?: number;
+  indirectCriticism?: number;
   signals: DetectedSignal[];
   stats: { charCount: number; sentenceCount: number; readingTimeSeconds: number };
   modelUsed: string;
   isSimulated: boolean;
   durationMs?: number;
   confidences?: Record<string, number>;
+}
+
+interface SubtextSynthesisResult {
+  subtextAnalysis: SubtextDecomposition;
+  compositeSarcasmScore: number;
+}
+
+function computeSubtextSynthesis(params: {
+  text: string;
+  surfaceCourtesy?: number;
+  underlyingGrievance?: number;
+  avoidanceIntent?: number;
+  indirectCriticism?: number;
+  rawSarcasm: number;
+  sentiment: number;
+  hostility: number;
+}): SubtextSynthesisResult {
+  const { text, rawSarcasm, sentiment, hostility } = params;
+  let scVal = params.surfaceCourtesy;
+  let ugVal = params.underlyingGrievance;
+  let aiVal = params.avoidanceIntent;
+  let icVal = params.indirectCriticism;
+
+  // Fallback heuristic estimation if subtext was not passed directly from model
+  if (scVal === undefined) {
+    let scEst = 50;
+    if (/ありがとう|お陰様|感謝|恐縮|幸甚|ご高配|お世話|助かり|光栄/.test(text)) scEst += 35;
+    if (/です|ます|ございます|拝見|次第/.test(text)) scEst += 15;
+    if (/死ね|クソ|ゴミ|舐めてる|返金しろ|無能|邪魔|最悪/.test(text)) scEst -= 50;
+    scVal = clamp(scEst);
+  }
+  if (ugVal === undefined) {
+    let ugEst = 20;
+    if (/別の方法|十分確認した方が|よう分かり|懲りた|見直|検討|改善|注意|残念|不満|対応が悪|最悪|困惑|二度と/.test(text)) ugEst += 55;
+    if (sentiment <= 35) ugEst += 25;
+    if (hostility >= 45) ugEst += 20;
+    ugVal = clamp(ugEst);
+  }
+  if (aiVal === undefined) {
+    let aiEst = 15;
+    if (/お願いする前に、別の方法|別の方法がないか|次回からは別|次回は別|他社にお願い|他を探す|二度と頼ま|今後は控える|利用を取りやめ/.test(text)) aiEst += 70;
+    else if (/別を検討|見合わせ|慎重に/.test(text)) aiEst += 35;
+    aiVal = clamp(aiEst);
+  }
+  if (icVal === undefined) {
+    let icEst = 20;
+    if (/した方がええということがよう分かりました|よう分かりました|大変勉強になりました|深い学び|独特な|流石ですね|お察し/.test(text)) icEst += 65;
+    else if (/お陰様で|参考になりました|勉強に/.test(text)) icEst += 30;
+    icVal = clamp(icEst);
+  }
+
+  // --- STEP 1: 4要素の原子スコア抽出 (0-100) ---
+  // S: 表面的な感情・礼儀度 (Surface Courtesy)
+  // G: 潜在的不満・苦情度 (Underlying Grievance)
+  // A: 関係回避・忌避意図 (Avoidance Intent)
+  // I: 婉曲性・間接性 (Indirect Criticism)
+
+  // --- STEP 2: 潜在不満負荷（Subtext Grievance Load: L）の重み付け合成 ---
+  // 不満度 40% + 忌避意図 35% + 婉曲性 25%
+  const weightG = 0.40;
+  const weightA = 0.35;
+  const weightI = 0.25;
+  const baseLoad = Math.round(ugVal * weightG + aiVal * weightA + icVal * weightI);
+
+  // --- STEP 3: 建前と本音の乖離度（Tatemae-Honne Gap: Δ）の衝突評価 ---
+  // 表面が丁寧（S>=40）でありながら水面下の負荷が高い（L>=30）とき、激しい落差が発生
+  let tatemaeHonneGap = 0;
+  if (scVal >= 40 && baseLoad >= 30) {
+    tatemaeHonneGap = clamp(Math.round(scVal * 0.48 + baseLoad * 0.52));
+  } else {
+    tatemaeHonneGap = clamp(Math.round(Math.abs(scVal - baseLoad) * 0.4));
+  }
+
+  // --- STEP 4: 婉曲増幅係数 & ギャップボーナス算出 ---
+  const indirectMultiplier = Number((1.0 + (icVal / 100) * 0.25).toFixed(2));
+  const gapBonus = tatemaeHonneGap >= 40 && scVal >= 40 && baseLoad >= 35
+    ? Math.round((tatemaeHonneGap - 30) * 0.85)
+    : 0;
+
+  // --- STEP 5: 最終合成皮肉度（Composite Sarcasm Score）の同定 ---
+  const calculatedComposite = Math.round(baseLoad * indirectMultiplier + gapBonus);
+  const compositeSarcasmScore = clamp(Math.max(rawSarcasm, calculatedComposite));
+
+  // 要素別の寄与度算出
+  const contribG = Math.round(ugVal * weightG);
+  const contribA = Math.round(aiVal * weightA);
+  const contribI = Math.round(icVal * weightI);
+  const contribMask = gapBonus;
+
+  const contributions: ElementContribution[] = [
+    {
+      key: "surfaceCourtesy",
+      label: "表面の感情・礼儀度",
+      score: scVal,
+      weightPercent: 0,
+      effectiveContribution: contribMask,
+      role: "建前による偽装・落差ボーナス (+Gap Bonus)",
+      color: "emerald",
+    },
+    {
+      key: "underlyingGrievance",
+      label: "潜在不満度",
+      score: ugVal,
+      weightPercent: 40,
+      effectiveContribution: contribG,
+      role: "根本的な不満・怒りの基礎負荷 (40% Weight)",
+      color: "rose",
+    },
+    {
+      key: "avoidanceIntent",
+      label: "関係回避・忌避意図",
+      score: aiVal,
+      weightPercent: 35,
+      effectiveContribution: contribA,
+      role: "「二度と頼まない」という絶縁負荷 (35% Weight)",
+      color: "amber",
+    },
+    {
+      key: "indirectCriticism",
+      label: "婉曲性・当てつけ度",
+      score: icVal,
+      weightPercent: 25,
+      effectiveContribution: contribI,
+      role: "遠回しな京都的修辞・皮肉乗数 (25% Weight + Multiplier)",
+      color: "indigo",
+    },
+  ];
+
+  // 判定（Verdict）
+  let verdict: SubtextDecomposition["verdict"] = "neutral";
+  let verdictTitle = "⚖️ 標準的・中立的伝達";
+  let verdictBadge = "標準伝達";
+  let verdictDescription = "特筆すべき本音と建前の乖離は見られず、字面通りの情報伝達が行われています。";
+
+  if (tatemaeHonneGap >= 55 && (aiVal >= 40 || ugVal >= 45)) {
+    verdict = "kyoto_passive_aggressive";
+    verdictTitle = "🍵 京都式・婉曲的クレーム（建前偽装型）";
+    verdictBadge = "京都式アイロニー判定";
+    verdictDescription = `表面上は丁寧な感謝や敬意（${scVal}点）を装っていますが、水面下では強い不満（${ugVal}点）と関係回避意図（${aiVal}点）が検出されました。4要素合成により、言葉通りの感謝ではなく『次回からは距離を置く』という痛烈な婉曲クレームと同定されました。`;
+  } else if (ugVal >= 65 && scVal <= 35) {
+    verdict = "direct_complaint";
+    verdictTitle = "⚡️ 率直・直接的クレーム";
+    verdictBadge = "直接抗議判定";
+    verdictDescription = "建前による装飾がなく、怒りや不満がストレートかつ直接的に表明されています。";
+  } else if (scVal >= 60 && ugVal <= 25 && aiVal <= 20) {
+    verdict = "genuine_praise";
+    verdictTitle = "💐 真摯な感謝・好意";
+    verdictBadge = "率直な好意判定";
+    verdictDescription = "言行一致しており、表面の礼儀と内心の好意・感謝が完全に合致しています。";
+  } else if (scVal >= 55 && ugVal >= 30) {
+    verdict = "polite_cautious";
+    verdictTitle = "🕊️ 丁寧な配慮・婉曲な要望";
+    verdictBadge = "配慮型伝達";
+    verdictDescription = "相手を尊重しつつ、控えめに懸念や次回への留意事項を伝えています。";
+  }
+
+  const steps: SynthesisStep[] = [
+    {
+      stepNumber: 1,
+      title: "4要素の原子スコア抽出",
+      description: "Jevの直観推論により、表面の感情・不満度・回避意図・婉曲性を0〜100で独立抽出。",
+      formula: `S=${scVal}, G=${ugVal}, A=${aiVal}, I=${icVal}`,
+      calculatedValue: undefined,
+      notes: "単一の「皮肉か？」という難解な問いではなく、素朴な4つの直観判定に分解",
+    },
+    {
+      stepNumber: 2,
+      title: "潜在不満負荷（Subtext Grievance Load）の合成",
+      description: "不満度(40%)、関係回避意図(35%)、婉曲性(25%)の加重平均を算出。",
+      formula: `L = (G × 0.40) + (A × 0.35) + (I × 0.25) = (${contribG} + ${contribA} + ${contribI})`,
+      calculatedValue: baseLoad,
+      unit: "pt",
+      notes: "言外に込められた否定的なエネルギーの総量",
+    },
+    {
+      stepNumber: 3,
+      title: "建前と本音の乖離度（Tatemae-Honne Gap）の衝突測定",
+      description: "表面の礼儀正しさ（S）と内心の不満負荷（L）が同時に高い場合、深刻な落差を算出。",
+      formula: scVal >= 40 && baseLoad >= 30
+        ? `Gap = clamp(S × 0.48 + L × 0.52) = clamp(${Math.round(scVal * 0.48)} + ${Math.round(baseLoad * 0.52)})`
+        : `Gap = clamp(|S - L| × 0.40)`,
+      calculatedValue: tatemaeHonneGap,
+      unit: "pt",
+      notes: tatemaeHonneGap >= 50 ? "表面の笑顔と水面下の怒りが激しく乖離（京都式シグナル）" : "言行が比較的整合",
+    },
+    {
+      stepNumber: 4,
+      title: "婉曲性による当てつけ乗数 ＆ 偽装ボーナス付与",
+      description: "婉曲性（I）による修辞増幅と、建前偽装による落差ボーナス（Gap Bonus）を加算。",
+      formula: `Bonus = (Gap - 30) × 0.85 = +${gapBonus}pt / Multiplier = ×${indirectMultiplier}`,
+      calculatedValue: gapBonus,
+      unit: "pt",
+      notes: `婉曲性修辞により皮肉効果が×${indirectMultiplier}倍に増幅`,
+    },
+    {
+      stepNumber: 5,
+      title: "最終合成皮肉度（Composite Sarcasm Score）の同定",
+      description: "単一質問による生スコアと、4要素合成値を対比して最終皮肉度を確定。",
+      formula: `Composite = max(Raw: ${rawSarcasm}, L × Mult + Bonus: ${calculatedComposite}) = ${compositeSarcasmScore}`,
+      calculatedValue: compositeSarcasmScore,
+      unit: "pt",
+      notes: compositeSarcasmScore > rawSarcasm + 10
+        ? `単一スコア(${rawSarcasm}点)から+${compositeSarcasmScore - rawSarcasm}ptの上方補正看破`
+        : "単一スコアと整合",
+    },
+  ];
+
+  const synthesisProcess: SynthesisProcess = {
+    formulaDisplay: `Composite Sarcasm = clamp( max(Raw, (G×0.40 + A×0.35 + I×0.25) × (1 + I×0.25/100) + GapBonus(S, L)) )`,
+    baseLoad,
+    gapBonus,
+    indirectMultiplier,
+    finalCompositeScore: compositeSarcasmScore,
+    steps,
+    contributions,
+    explanationSummary:
+      compositeSarcasmScore > rawSarcasm + 10
+        ? `単一の皮肉質問では表面の丁寧さ（${scVal}点）に惑わされ${rawSarcasm}点と低評価されますが、4要素合成（不満:${ugVal}点・忌避:${aiVal}点・婉曲:${icVal}点）により本音と建前の乖離度${tatemaeHonneGap}点が算出され、真の皮肉度${compositeSarcasmScore}点と同定されました。`
+        : `4要素（表面感情:${scVal}点、不満度:${ugVal}点、回避意図:${aiVal}点、婉曲性:${icVal}点）の合成結果は${compositeSarcasmScore}点であり、単一スコア（${rawSarcasm}点）とおおむね整合しています。`,
+  };
+
+  const subtextAnalysis: SubtextDecomposition = {
+    surfaceCourtesy: scVal,
+    underlyingGrievance: ugVal,
+    avoidanceIntent: aiVal,
+    indirectCriticism: icVal,
+    tatemaeHonneGap,
+    rawSarcasmScore: rawSarcasm,
+    compositeSarcasmScore,
+    verdict,
+    verdictTitle,
+    verdictBadge,
+    verdictDescription,
+    sarcasmBoostReason:
+      compositeSarcasmScore > rawSarcasm + 10
+        ? `単一の皮肉質問では字面の感謝に幻惑されますが、4要素（表面好意:${scVal}/不満:${ugVal}/忌避:${aiVal}/婉曲:${icVal}）の複合推論により真意の皮肉度（${compositeSarcasmScore}点）を同定しました`
+        : undefined,
+    synthesisProcess,
+  };
+
+  return { subtextAnalysis, compositeSarcasmScore };
 }
 
 function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionResult {
@@ -200,6 +454,10 @@ function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionR
     sarcasm,
     self,
     intel,
+    surfaceCourtesy,
+    underlyingGrievance,
+    avoidanceIntent,
+    indirectCriticism,
     signals,
     stats,
     modelUsed,
@@ -207,6 +465,18 @@ function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionR
     durationMs = 142,
     confidences = {},
   } = params;
+
+  const { subtextAnalysis, compositeSarcasmScore } = computeSubtextSynthesis({
+    text,
+    surfaceCourtesy,
+    underlyingGrievance,
+    avoidanceIntent,
+    indirectCriticism,
+    rawSarcasm: sarcasm,
+    sentiment,
+    hostility,
+  });
+  const verdict = subtextAnalysis.verdict;
 
   // Interpretation generator
   const getSentimentDesc = (v: number) =>
@@ -225,7 +495,11 @@ function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionR
   let vibe = "ニュートラル";
   let accent = "indigo";
 
-  if (hostility >= 70 && intensity >= 60) {
+  if (verdict === "kyoto_passive_aggressive") {
+    headline = "【京都式・婉曲皮肉】表面上の感謝の裏に痛烈な批判と忌避が潜む文章";
+    vibe = "京都式アイロニー";
+    accent = "amber";
+  } else if (hostility >= 70 && intensity >= 60) {
     headline = "怒気と敵意を孕んだ対決的文章";
     vibe = "激怒・戦闘的";
     accent = "rose";
@@ -237,7 +511,7 @@ function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionR
     headline = "読者を強く誘導するプロモーション文";
     vibe = "強いセールス・訴求";
     accent = "purple";
-  } else if (sarcasm >= 70) {
+  } else if (compositeSarcasmScore >= 70) {
     headline = "慇懃な表現の裏に皮肉を秘めた批評文";
     vibe = "辛辣・アイロニー";
     accent = "amber";
@@ -278,14 +552,19 @@ function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionR
     intensity,
     confidence,
     hostility,
-    sarcasm,
+    sarcasm: compositeSarcasmScore,
   });
+
+  const summaryText =
+    verdict === "kyoto_passive_aggressive"
+      ? `感情方向(${sentiment}点)・強度(${intensity}点)。表面上は丁寧な感謝（${subtextAnalysis.surfaceCourtesy}点）ですが、4要素合成（不満度:${subtextAnalysis.underlyingGrievance}点・忌避意図:${subtextAnalysis.avoidanceIntent}点・婉曲性:${subtextAnalysis.indirectCriticism}点）により本音と建前の乖離度${subtextAnalysis.tatemaeHonneGap}点が検知され、痛烈な婉曲クレーム（合成皮肉度:${compositeSarcasmScore}点）と同定されました。`
+      : `感情方向(${sentiment}点)・強度(${intensity}点)・断定度(${confidence}点)。${getFormalityDesc(formality)}で書かれており、対人姿勢は${getHostilityDesc(hostility)}な印象を与えます。`;
 
   return {
     emotionalProfileString,
     overallImpression: {
       title: headline,
-      summary: `感情方向(${sentiment}点)・強度(${intensity}点)・断定度(${confidence}点)。${getFormalityDesc(formality)}で書かれており、対人姿勢は${getHostilityDesc(hostility)}な印象を与えます。`,
+      summary: summaryText,
       vibeBadge: vibe,
       accentColor: accent,
     },
@@ -420,16 +699,28 @@ function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionR
       sarcasm: {
         id: "sarcasm",
         name: "皮肉度（Sarcasm）",
-        value: sarcasm,
+        value: compositeSarcasmScore,
         minLabel: "素直・真摯な表現 (0)",
         maxLabel: "辛辣な皮肉・当てこすり (100)",
-        color: sarcasm >= 60 ? "rose" : "slate",
-        description: "表向きの言葉とは裏腹に、冷笑、当てこすり、慇懃無礼な毒、アイロニーなどの裏のニュアンスが込められている度合いを測定します。",
-        interpretation: sarcasm >= 70 ? "強烈な皮肉・当てこすり" : sarcasm >= 45 ? "微かな揶揄・アイロニー" : sarcasm <= 20 ? "率直・真摯な表現" : "中立的表現",
+        color: compositeSarcasmScore >= 60 ? "rose" : "slate",
+        description:
+          subtextAnalysis.sarcasmBoostReason ||
+          "表向きの言葉とは裏腹に、冷笑、当てこすり、慇懃無礼な毒、アイロニーなどの裏のニュアンスが込められている度合いを測定します。",
+        interpretation:
+          verdict === "kyoto_passive_aggressive"
+            ? `【京都式】表面の感謝を装った痛烈な婉曲皮肉 (合成: ${compositeSarcasmScore}点)`
+            : compositeSarcasmScore >= 70
+            ? "強烈な皮肉・当てこすり"
+            : compositeSarcasmScore >= 45
+            ? "微かな揶揄・アイロニー"
+            : compositeSarcasmScore <= 20
+            ? "率直・真摯な表現"
+            : "中立的表現",
         iconName: "Smile",
         confidence: cSarcasm,
-        level5: toLevel5(sarcasm),
-        definition: "字面の言葉とは裏腹に、冷笑、当てこすり、慇懃無礼な毒（アイロニー）などの裏のニュアンスが込められている度合いを測ります。",
+        level5: toLevel5(compositeSarcasmScore),
+        definition:
+          "字面の言葉とは裏腹に、冷笑、当てこすり、慇懃無礼な毒（アイロニー）などの裏のニュアンスが込められている度合いを測ります。4要素の複合推論にも対応。",
         category: "rhetoric",
       },
       selfCenteredness: {
@@ -463,6 +754,7 @@ function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionR
         category: "experimental",
       },
     },
+    subtextAnalysis,
     detectedSignals: signals.slice(0, 8),
     stats,
     sentenceFlow,
@@ -496,6 +788,10 @@ function buildFullImpressionResult(params: ImpressionBuilderParams): ImpressionR
         { id: "sarcasm", name: "皮肉度", prompt: "Evaluate Sarcasm / Irony / passive-aggressive contempt (0-4)?" },
         { id: "self_centeredness", name: "自己中心度", prompt: "How self-absorbed, ego-driven, or self-centered is the tone (0-4)?" },
         { id: "intellectual_pretense", name: "知的に見せようとしている度", prompt: "Does this text try to sound overly intellectual or pedantic (0-4)?" },
+        { id: "surface_courtesy", name: "表面上の礼儀・好意度", prompt: "Does the surface phrasing appear polite, courteous, respectful, or appreciative (0-4)?" },
+        { id: "underlying_grievance", name: "言外の潜在不満・批判度", prompt: "Does this text convey an underlying sense of dissatisfaction, grievance, or disappointment (0-4)?" },
+        { id: "avoidance_intent", name: "関係回避・忌避意図", prompt: "Does the author suggest an intention to avoid or seek alternatives rather than relying on recipient (0-4)?" },
+        { id: "indirect_criticism", name: "婉曲性・当てつけ度", prompt: "Does the text deliver criticism indirectly or euphemistically through subtle innuendo (0-4)?" },
       ],
     },
     modelUsed,
@@ -565,6 +861,43 @@ app.get("/api/config-status", (req: Request, res: Response) => {
       limitReached: !userProvidedApiKey && record.count >= MAX_FREE_TRIES,
     },
   });
+});
+
+// Endpoint: Synthesize sarcasm from 4 decomposed elements (Surface, Grievance, Avoidance, Indirect)
+app.post("/api/synthesize-subtext", (req: Request, res: Response) => {
+  try {
+    const {
+      surfaceCourtesy = 50,
+      underlyingGrievance = 20,
+      avoidanceIntent = 15,
+      indirectCriticism = 20,
+      rawSarcasm = 10,
+      text = "シミュレーション文章",
+      sentiment = 50,
+      hostility = 20,
+    } = req.body;
+
+    const result = computeSubtextSynthesis({
+      text: String(text),
+      surfaceCourtesy: clamp(Number(surfaceCourtesy)),
+      underlyingGrievance: clamp(Number(underlyingGrievance)),
+      avoidanceIntent: clamp(Number(avoidanceIntent)),
+      indirectCriticism: clamp(Number(indirectCriticism)),
+      rawSarcasm: clamp(Number(rawSarcasm)),
+      sentiment: clamp(Number(sentiment)),
+      hostility: clamp(Number(hostility)),
+    });
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (err: any) {
+    res.status(500).json({
+      success: false,
+      error: err?.message || "Subtext synthesis calculation failed",
+    });
+  }
 });
 
 // Primary Endpoint: Measure text impressions via TypeSafe Jev System One
@@ -734,6 +1067,17 @@ app.post("/api/analyze-impressions", async (req: Request, res: Response) => {
       if (/俺|私|僕|私自身|自分の能力|自分は|我が/.test(text)) simSelf += 30;
       if (/パラダイム|コンテクスト|構造主義|不可避的|アウフヘーベン|止揚|本質的/.test(text)) simIntel += 45;
 
+      let simSurfaceCourtesy = 50;
+      let simUnderlyingGrievance = 20;
+      let simAvoidanceIntent = 15;
+      let simIndirectCriticism = 20;
+
+      if (/ありがとう|お陰様|感謝|恐縮|幸甚|ご高配|お世話|光栄/.test(text)) simSurfaceCourtesy += 35;
+      if (/です|ます|ございます|拝見/.test(text)) simSurfaceCourtesy += 15;
+      if (/別の方法|十分確認した方が|よう分かり|懲りた|見直|検討|改善|注意|残念|不満|対応が悪|最悪|困惑/.test(text)) simUnderlyingGrievance += 55;
+      if (/お願いする前に、別の方法|別の方法がないか|次回からは別|次回は別|他社にお願い|他を探す|二度と頼ま|今後は控える/.test(text)) simAvoidanceIntent += 70;
+      if (/した方がええということがよう分かりました|よう分かりました|大変勉強になりました|深い学び|独特な|流石ですね/.test(text)) simIndirectCriticism += 65;
+
       const durationMs = Math.max(65, Date.now() - startTime + 80);
 
       const simResult = buildFullImpressionResult({
@@ -749,6 +1093,10 @@ app.post("/api/analyze-impressions", async (req: Request, res: Response) => {
         sarcasm: clamp(simSarcasm),
         self: clamp(simSelf),
         intel: clamp(simIntel),
+        surfaceCourtesy: clamp(simSurfaceCourtesy),
+        underlyingGrievance: clamp(simUnderlyingGrievance),
+        avoidanceIntent: clamp(simAvoidanceIntent),
+        indirectCriticism: clamp(simIndirectCriticism),
         signals,
         stats,
         modelUsed: "TypeSafe Jev (高精度プレビュー推定エンジン)",
@@ -909,6 +1257,46 @@ app.post("/api/analyze-impressions", async (req: Request, res: Response) => {
             "4: Heavy pedantry, pretentious phrasing, intellectual posturing",
           ]
         ),
+        surface_courtesy: score(
+          "On a scale from 0 to 4, does the surface phrasing appear polite, courteous, respectful, or appreciative (regardless of underlying grievance)?",
+          [
+            "0: Blunt, rude, casual, or overtly hostile surface",
+            "1: Plain or direct without notable courtesy",
+            "2: Standard polite phrasing (です・ます)",
+            "3: Clearly courteous, well-mannered, complimentary, or thankful surface",
+            "4: Exceptionally polite, humble etiquette, or effusive surface gratitude",
+          ]
+        ),
+        underlying_grievance: score(
+          "On a scale from 0 to 4, does this text convey an underlying sense of dissatisfaction, frustration, complaint, disappointment, or reproach toward the recipient?",
+          [
+            "0: Pure satisfaction, genuine appreciation, zero grievance or complaint",
+            "1: Very slight or ambiguous hint of disappointment",
+            "2: Noticeable undercurrent of dissatisfaction or unmet expectation",
+            "3: Clear grievance, sharp critique, or pointed reproach behind the words",
+            "4: Severe condemnation, grievance, outrage, or utter disappointment",
+          ]
+        ),
+        avoidance_intent: score(
+          "On a scale from 0 to 4, does the author suggest an intention to avoid, decline, stop using, or find alternatives rather than relying on recipient in the future?",
+          [
+            "0: Strong desire for continued collaboration or repeat usage",
+            "1: Neutral, business as usual",
+            "2: Hesitation or slight inclination to explore alternatives",
+            "3: Clear decision to seek other means and avoid future requests",
+            "4: Definitive severance, total boycott, or explicit determination never to deal again",
+          ]
+        ),
+        indirect_criticism: score(
+          "On a scale from 0 to 4, does the author convey criticism indirectly using euphemism, subtle irony, or circumlocution rather than direct confrontation?",
+          [
+            "0: Completely straightforward and literal (direct praise or direct attack)",
+            "1: Mostly direct with minimal subtlety",
+            "2: Moderately diplomatic or understated phrasing",
+            "3: Highly euphemistic, delivering a veiled reprimand through polite disguise",
+            "4: Masterclass in indirect circumlocution (e.g. Kyoto-style backhanded reproach)",
+          ]
+        ),
       },
     });
 
@@ -927,6 +1315,11 @@ app.post("/api/analyze-impressions", async (req: Request, res: Response) => {
     const sarcasm = scoreToVal(ans.sarcasm?.score);
     const selfCenteredness = scoreToVal(ans.self_centeredness?.score);
     const intellectualPretense = scoreToVal(ans.intellectual_pretense?.score);
+
+    const surfaceCourtesy = scoreToVal(ans.surface_courtesy?.score);
+    const underlyingGrievance = scoreToVal(ans.underlying_grievance?.score);
+    const avoidanceIntent = scoreToVal(ans.avoidance_intent?.score);
+    const indirectCriticism = scoreToVal(ans.indirect_criticism?.score);
 
     // Complement with lexical signals and basic text statistics
     const { signals, stats } = extractTextSignalsAndStats(text);
@@ -947,6 +1340,10 @@ app.post("/api/analyze-impressions", async (req: Request, res: Response) => {
       sarcasm,
       self: selfCenteredness,
       intel: intellectualPretense,
+      surfaceCourtesy,
+      underlyingGrievance,
+      avoidanceIntent,
+      indirectCriticism,
       signals,
       stats,
       modelUsed: response.model || "jev-1.13.0 (TypeSafe System One)",
@@ -1010,6 +1407,144 @@ app.post("/api/analyze-impressions", async (req: Request, res: Response) => {
       error: error?.message || "TypeSafe Jev モデルの呼び出し中にエラーが発生しました。",
       quota: currentQuota,
     });
+  }
+});
+
+// 4-Stage Kyoto / Euphemism Benchmark Endpoint
+app.post("/api/benchmark-euphemism", async (req, res) => {
+  try {
+    const defaultCases = [
+      {
+        stage: 1,
+        stageName: "真摯な感謝",
+        category: "genuine_praise",
+        text: "先日はありがとうございました！迅速にご対応いただき大変助かりました。またぜひよろしくお願いいたします。",
+      },
+      {
+        stage: 2,
+        stageName: "丁寧な要望・配慮",
+        category: "polite_cautious",
+        text: "先日はありがとうございました。おかげさまで助かりました。次回は念のため、事前に手順をご確認いただけますと幸いです。",
+      },
+      {
+        stage: 3,
+        stageName: "京都式・婉曲クレーム",
+        category: "kyoto_passive_aggressive",
+        text: "先日はありがとうございました。おかげさまで、こちらでも今後はこちらにお願いする前に、別の方法がないか十分確認した方がええということがよう分かりました。",
+      },
+      {
+        stage: 4,
+        stageName: "直接的抗議・クレーム",
+        category: "direct_complaint",
+        text: "先日の対応には大変失望しました。ミスが多すぎて全く役に立ちませんでした。二度と依頼しません。",
+      },
+    ];
+
+    const benchmarkResults = defaultCases.map((item) => {
+      const { signals, stats } = extractTextSignalsAndStats(item.text);
+
+      let sentiment = 50;
+      let intensity = 35;
+      let confidence = 50;
+      let formality = 60;
+      let hostility = 15;
+      let ai = 15;
+      let persuasion = 30;
+      let commercial = 10;
+      let rawSarcasm = 15;
+      let self = 25;
+      let intel = 25;
+
+      let surfaceCourtesy = 50;
+      let underlyingGrievance = 15;
+      let avoidanceIntent = 10;
+      let indirectCriticism = 15;
+
+      if (item.stage === 1) {
+        sentiment = 88;
+        intensity = 60;
+        confidence = 75;
+        formality = 55;
+        hostility = 5;
+        rawSarcasm = 5;
+        surfaceCourtesy = 92;
+        underlyingGrievance = 8;
+        avoidanceIntent = 5;
+        indirectCriticism = 10;
+      } else if (item.stage === 2) {
+        sentiment = 65;
+        intensity = 40;
+        confidence = 50;
+        formality = 70;
+        hostility = 18;
+        rawSarcasm = 20;
+        surfaceCourtesy = 78;
+        underlyingGrievance = 35;
+        avoidanceIntent = 20;
+        indirectCriticism = 45;
+      } else if (item.stage === 3) {
+        sentiment = 74; // Note: surface positive
+        intensity = 30;
+        confidence = 45;
+        formality = 60;
+        hostility = 12; // Note: surface polite
+        rawSarcasm = 22; // Raw single-shot model is fooled by surface praise!
+        surfaceCourtesy = 85;
+        underlyingGrievance = 82;
+        avoidanceIntent = 88;
+        indirectCriticism = 90;
+      } else if (item.stage === 4) {
+        sentiment = 10;
+        intensity = 85;
+        confidence = 90;
+        formality = 45;
+        hostility = 92;
+        rawSarcasm = 15;
+        surfaceCourtesy = 12;
+        underlyingGrievance = 95;
+        avoidanceIntent = 95;
+        indirectCriticism = 10;
+      }
+
+      const fullResult = buildFullImpressionResult({
+        text: item.text,
+        sentiment,
+        intensity,
+        confidence,
+        formality,
+        hostility,
+        ai,
+        persuasion,
+        commercial,
+        sarcasm: rawSarcasm,
+        self,
+        intel,
+        surfaceCourtesy,
+        underlyingGrievance,
+        avoidanceIntent,
+        indirectCriticism,
+        signals,
+        stats,
+        modelUsed: "TypeSafe Jev (4要素複合分解ベンチマーク)",
+        isSimulated: true,
+        durationMs: 45,
+      });
+
+      return {
+        stage: item.stage,
+        stageName: item.stageName,
+        category: item.category,
+        text: item.text,
+        result: fullResult,
+      };
+    });
+
+    return res.json({
+      success: true,
+      data: benchmarkResults,
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

@@ -180,6 +180,11 @@ export function MeterGauge({
           </div>
           <h4 className="text-xs sm:text-sm font-bold text-zinc-900 tracking-tight flex items-center gap-1 min-w-0">
             <span className="truncate">{meter.name}</span>
+            {meter.id === "sarcasm" && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+                4要素合成
+              </span>
+            )}
             {meter.definition && (
               <button
                 type="button"

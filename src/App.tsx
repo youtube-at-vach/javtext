@@ -13,6 +13,9 @@ import { MeaningOscilloscope } from "./components/MeaningOscilloscope";
 import { ABComparisonView } from "./components/ABComparisonView";
 import { DeveloperDetailsDrawer } from "./components/DeveloperDetailsDrawer";
 import { PrivacyNotice } from "./components/PrivacyNotice";
+import { SubtextDecompositionCard } from "./components/SubtextDecompositionCard";
+import { SubtextBenchmarkModal } from "./components/SubtextBenchmarkModal";
+import { AnimatedScore } from "./components/AnimatedScore";
 import { PRESET_SAMPLES } from "./data/presets";
 import { ImpressionResult, PresetSample, QuotaInfo } from "./types";
 import {
@@ -59,6 +62,7 @@ export default function App() {
   const [quota, setQuota] = useState<QuotaInfo | null>(null);
   const [isQuotaModalOpen, setIsQuotaModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isBenchmarkModalOpen, setIsBenchmarkModalOpen] = useState(false);
   const [isMeasuring, setIsMeasuring] = useState(false);
   const [result, setResult] = useState<ImpressionResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -559,6 +563,14 @@ export default function App() {
                       >
                         +「皮肉：感服いたしました（笑）」
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => injectSnippet("別の方法がないか十分確認した方がええということがよう分かりました。")}
+                        className="text-[10px] px-2 py-1 rounded bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 transition-colors font-medium"
+                        title="京都式婉曲（忌避・本音不満）を注入"
+                      >
+                        +「京都弁：別の方法がないか確認した方がええ」
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -592,57 +604,218 @@ export default function App() {
                   </div>
                 ) : (
                   <>
-                    {/* 1. Overall Impression Banner & Emotional Profile */}
+                    {/* 1. Overall Impression Banner & Animated Summary Deck */}
                     <motion.div
-                      key={`summary-bar-${result.overallImpression.title}`}
-                      initial={{ opacity: 0, y: -4 }}
+                      key={`summary-bar-${result.overallImpression.title}-${measureAnimKey}`}
+                      initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className={`p-3.5 sm:p-4 rounded-2xl border shadow-2xs transition-colors duration-500 ${
-                        result.coreMeters.sentiment.value >= 55
-                          ? "bg-blue-50/40 border-blue-200/90 text-blue-950"
+                      transition={{ duration: 0.35 }}
+                      className={`p-4 sm:p-5 rounded-2xl border shadow-xs transition-colors duration-500 ${
+                        result.subtextAnalysis?.verdict === "kyoto_passive_aggressive"
+                          ? "bg-gradient-to-br from-amber-50/80 via-white to-emerald-50/40 border-amber-300 ring-1 ring-amber-200/70"
+                          : result.coreMeters.sentiment.value >= 55
+                          ? "bg-gradient-to-br from-blue-50/60 via-white to-indigo-50/40 border-blue-200/90 shadow-blue-100/40"
                           : result.coreMeters.sentiment.value <= 45
-                          ? "bg-rose-50/40 border-rose-200/90 text-rose-950"
-                          : "bg-white border-zinc-200/90 text-zinc-900"
+                          ? "bg-gradient-to-br from-rose-50/60 via-white to-red-50/40 border-rose-200/90 shadow-rose-100/40"
+                          : "bg-gradient-to-br from-zinc-50/70 via-white to-zinc-50/40 border-zinc-200 text-zinc-900"
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3 pb-2 border-b border-zinc-200/60">
-                        <div className="flex items-center flex-wrap gap-1.5 min-w-0">
-                          <span className="text-xs font-bold text-zinc-900 shrink-0">
+                      {/* Top Header Row */}
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-3 border-b border-zinc-200/70">
+                        <div className="flex items-center flex-wrap gap-2 min-w-0">
+                          <span className="text-xs font-bold text-zinc-900 uppercase tracking-wider shrink-0">
                             計測結果サマリー
                           </span>
-                          {result.coreMeters.sentiment.value >= 55 && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 shadow-2xs shrink-0">
-                              <Sparkles className="w-3 h-3 text-blue-600" />
-                              ポジティブ判定 ({result.coreMeters.sentiment.value}/100)
+
+                          {/* Dynamic Sentiment Badge with Counting & Color Shift */}
+                          {result.coreMeters.sentiment.value >= 55 ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 shadow-2xs shrink-0">
+                              <Sparkles className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                              <span>ポジティブ判定</span>
+                              <span className="tabular-nums">
+                                (
+                                <AnimatedScore
+                                  value={result.coreMeters.sentiment.value}
+                                  sentimentMode={true}
+                                  animKey={measureAnimKey}
+                                />
+                                /100)
+                              </span>
+                            </span>
+                          ) : result.coreMeters.sentiment.value <= 45 ? (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 shadow-2xs shrink-0">
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                              <span>ネガティブ・批判判定</span>
+                              <span className="tabular-nums">
+                                (
+                                <AnimatedScore
+                                  value={result.coreMeters.sentiment.value}
+                                  sentimentMode={true}
+                                  animKey={measureAnimKey}
+                                />
+                                /100)
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 shadow-2xs shrink-0">
+                              <span>中立・平常判定</span>
+                              <span className="tabular-nums">
+                                (
+                                <AnimatedScore
+                                  value={result.coreMeters.sentiment.value}
+                                  animKey={measureAnimKey}
+                                />
+                                /100)
+                              </span>
                             </span>
                           )}
-                          {result.coreMeters.sentiment.value <= 45 && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 shadow-2xs shrink-0">
-                              <AlertCircle className="w-3 h-3 text-rose-600" />
-                              ネガティブ判定 ({result.coreMeters.sentiment.value}/100)
+
+                          {/* Kyoto Passive-Aggressive Alert Badge */}
+                          {result.subtextAnalysis?.verdict === "kyoto_passive_aggressive" && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs shrink-0 animate-pulse">
+                              <span>🍵 京都式・婉曲クレーム検知</span>
+                              <span className="font-mono text-[10px] bg-amber-200/80 px-1 rounded">
+                                合成皮肉度 {result.subtextAnalysis.compositeSarcasmScore}点
+                              </span>
                             </span>
                           )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={handleCopyReport}
-                          className="px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
-                        >
-                          {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
-                          <span>{isCopied ? "コピー完了" : "測定結果をコピー"}</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {result.subtextAnalysis && (
+                            <button
+                              type="button"
+                              onClick={() => setIsBenchmarkModalOpen(true)}
+                              className="px-2.5 py-1.5 rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-900 text-xs font-semibold flex items-center gap-1 transition-colors shrink-0 shadow-2xs"
+                              title="京都弁・婉曲表現の4段階ベンチマークを開く"
+                            >
+                              <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                              <span className="hidden sm:inline">4段階ベンチマーク</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={handleCopyReport}
+                            className="px-3 py-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0 shadow-2xs"
+                          >
+                            {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-zinc-400" />}
+                            <span>{isCopied ? "コピー完了" : "測定結果をコピー"}</span>
+                          </button>
+                        </div>
                       </div>
 
-                      <div className="text-xs text-zinc-700 mt-2 leading-relaxed">
-                        <strong className="text-zinc-900 font-bold mr-1.5">{result.overallImpression.title}</strong>
-                        <span className="text-zinc-400 font-normal">—</span>
-                        <span className="ml-1.5 text-zinc-600">{result.overallImpression.summary}</span>
+                      {/* Main Overall Impression Description */}
+                      <div className="text-xs sm:text-sm text-zinc-800 mt-3 leading-relaxed">
+                        <strong className="text-zinc-950 font-black mr-2 text-sm sm:text-base">
+                          {result.overallImpression.title}
+                        </strong>
+                        <span className="text-zinc-400 font-normal mr-2">—</span>
+                        <span className="text-zinc-600">{result.overallImpression.summary}</span>
+                      </div>
+
+                      {/* Micro-Gauge KPI Bar with Animated Counting & Live Color Response */}
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-3.5 pt-3 border-t border-zinc-200/60">
+                        {/* 1. 感情方向 (Sentiment) */}
+                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs">
+                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">感情方向</div>
+                          <div className="text-base font-black tabular-nums mt-0.5">
+                            <AnimatedScore
+                              value={result.coreMeters.sentiment.value}
+                              sentimentMode={true}
+                              showTrendIcon={true}
+                              animKey={measureAnimKey}
+                            />
+                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
+                          </div>
+                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
+                            {result.coreMeters.sentiment.level5}
+                          </div>
+                        </div>
+
+                        {/* 2. 感情強度 (Intensity) */}
+                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs">
+                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">感情強度</div>
+                          <div className="text-base font-black text-amber-600 tabular-nums mt-0.5">
+                            <AnimatedScore
+                              value={result.coreMeters.intensity.value}
+                              animKey={measureAnimKey}
+                            />
+                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
+                          </div>
+                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
+                            {result.coreMeters.intensity.level5}
+                          </div>
+                        </div>
+
+                        {/* 3. 断定度 (Confidence) */}
+                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs">
+                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">断定・言い切り</div>
+                          <div className="text-base font-black text-indigo-600 tabular-nums mt-0.5">
+                            <AnimatedScore
+                              value={result.coreMeters.confidence.value}
+                              animKey={measureAnimKey}
+                            />
+                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
+                          </div>
+                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
+                            {result.coreMeters.confidence.level5}
+                          </div>
+                        </div>
+
+                        {/* 4. 対人敵意 (Hostility) */}
+                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs">
+                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">対人敵意</div>
+                          <div
+                            className={`text-base font-black tabular-nums mt-0.5 ${
+                              result.coreMeters.hostility.value >= 40 ? "text-rose-600" : "text-emerald-600"
+                            }`}
+                          >
+                            <AnimatedScore
+                              value={result.coreMeters.hostility.value}
+                              animKey={measureAnimKey}
+                            />
+                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
+                          </div>
+                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
+                            {result.coreMeters.hostility.level5}
+                          </div>
+                        </div>
+
+                        {/* 5. 合成皮肉度 or 単一皮肉度 */}
+                        <div className="bg-white/80 rounded-xl p-2 border border-zinc-200 text-center shadow-2xs col-span-2 sm:col-span-1">
+                          <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
+                            {result.subtextAnalysis ? "4要素合成皮肉" : "皮肉度"}
+                          </div>
+                          <div
+                            className={`text-base font-black tabular-nums mt-0.5 ${
+                              (result.subtextAnalysis?.compositeSarcasmScore ?? result.nuanceMeters.sarcasm.value) >= 60
+                                ? "text-purple-600 font-bold"
+                                : "text-zinc-800"
+                            }`}
+                          >
+                            <AnimatedScore
+                              value={result.subtextAnalysis?.compositeSarcasmScore ?? result.nuanceMeters.sarcasm.value}
+                              animKey={measureAnimKey}
+                            />
+                            <span className="text-[10px] text-zinc-400 font-normal">/100</span>
+                          </div>
+                          <div className="text-[9px] text-zinc-500 truncate mt-0.5">
+                            {result.subtextAnalysis?.verdictBadge ?? result.nuanceMeters.sarcasm.level5}
+                          </div>
+                        </div>
                       </div>
                     </motion.div>
 
                     <EmotionalProfileCard result={result} />
+
+                    {/* Subtext Decomposition (京都弁・婉曲アイロニー・本音と建前の4要素分解) */}
+                    {result.subtextAnalysis && (
+                      <SubtextDecompositionCard
+                        subtext={result.subtextAnalysis}
+                        onOpenBenchmark={() => setIsBenchmarkModalOpen(true)}
+                      />
+                    )}
 
                     {/* 2. Meaning Oscilloscope (文章内の時系列波形グラフ) */}
                     {result.sentenceFlow && (
@@ -734,6 +907,16 @@ export default function App() {
         onOpenKeySettings={() => {
           setIsQuotaModalOpen(false);
           setIsSettingsOpen(true);
+        }}
+      />
+
+      <SubtextBenchmarkModal
+        isOpen={isBenchmarkModalOpen}
+        onClose={() => setIsBenchmarkModalOpen(false)}
+        onSelectText={(text) => {
+          setInputText(text);
+          setIsBenchmarkModalOpen(false);
+          measureText(text);
         }}
       />
     </div>

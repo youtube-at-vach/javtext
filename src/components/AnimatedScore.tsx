@@ -8,6 +8,7 @@ interface AnimatedScoreProps {
   className?: string;
   sentimentMode?: boolean; // If true: >50 is positive blue, <50 is negative red
   showTrendIcon?: boolean;
+  textColor?: string;
 }
 
 export function AnimatedScore({
@@ -16,6 +17,7 @@ export function AnimatedScore({
   className = "",
   sentimentMode = false,
   showTrendIcon = false,
+  textColor,
 }: AnimatedScoreProps) {
   const [displayValue, setDisplayValue] = useState(value);
   const [direction, setDirection] = useState<"up" | "down" | "neutral">("neutral");
@@ -63,15 +65,19 @@ export function AnimatedScore({
   // 1. If sentimentMode is on: value-based blue vs red
   // 2. Otherwise: direction-based (up = blue, down = red)
   const getColorClass = () => {
+    if (textColor && direction === "neutral") {
+      return textColor;
+    }
+
     if (sentimentMode) {
       if (value >= 55) return "text-blue-600";
       if (value <= 45) return "text-rose-600";
-      return "text-zinc-800";
+      return textColor || "text-zinc-800";
     }
 
     if (direction === "up") return "text-blue-600";
     if (direction === "down") return "text-rose-600";
-    return "text-zinc-900";
+    return textColor || "text-zinc-900";
   };
 
   return (
